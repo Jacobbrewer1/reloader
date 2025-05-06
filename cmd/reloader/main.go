@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	appName = "vector-config-controller"
+	appName = "reloader"
 )
 
 type (
