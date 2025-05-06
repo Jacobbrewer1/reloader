@@ -4,9 +4,10 @@ load("//tools/bazel/oci:build_container.bzl", "build_container")
 go_library(
     name = "reloader_lib",
     srcs = [
+        "config_map.go",
         "k8s.go",
         "main.go",
-        "secrets.go",
+        "secret.go",
     ],
     importpath = "github.com/jacobbrewer1/reloader/cmd/reloader",
     visibility = ["//visibility:private"],
@@ -36,8 +37,9 @@ go_binary(
 go_test(
     name = "reloader_test",
     srcs = [
+        "config_map_test.go",
         "k8s_test.go",
-        "secrets_test.go",
+        "secret_test.go",
     ],
     embed = [":reloader_lib"],
     deps = [

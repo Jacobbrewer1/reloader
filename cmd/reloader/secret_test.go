@@ -90,7 +90,7 @@ func Test_OnSecretUpdate(t *testing.T) {
 		require.Equal(t, corev1.PodRunning, p.Status.Phase)
 	})
 
-	t.Run("not secret", func(t *testing.T) {
+	t.Run("not-secret", func(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
@@ -130,7 +130,7 @@ func Test_OnSecretUpdate(t *testing.T) {
 		require.Equal(t, corev1.PodRunning, p.Status.Phase)
 	})
 
-	t.Run("not in bucket", func(t *testing.T) {
+	t.Run("not-in-bucket", func(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
