@@ -1,0 +1,51 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+load("//tools/bazel/oci:build_container.bzl", "build_container")
+
+go_library(
+    name = "reloader_lib",
+    srcs = [
+        "k8s.go",
+        "main.go",
+        "secrets.go",
+    ],
+    importpath = "github.com/jacobbrewer1/reloader/cmd/reloader",
+    visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_caarlos0_env_v10//:env",
+        "@com_github_jacobbrewer1_web//:web",
+        "@com_github_jacobbrewer1_web//cache",
+        "@com_github_jacobbrewer1_web//logging",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/labels",
+        "@io_k8s_client_go//kubernetes",
+        "@io_k8s_client_go//listers/core/v1:core",
+        "@io_k8s_client_go//tools/cache",
+        "@org_uber_go_multierr//:multierr",
+    ],
+)
+
+build_container("reloader")
+
+go_binary(
+    name = "reloader",
+    embed = [":reloader_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "reloader_test",
+    srcs = [
+        "k8s_test.go",
+        "secrets_test.go",
+    ],
+    embed = [":reloader_lib"],
+    deps = [
+        "@com_github_jacobbrewer1_web//cache",
+        "@com_github_stretchr_testify//require",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_client_go//informers",
+        "@io_k8s_client_go//kubernetes/fake",
+    ],
+)
