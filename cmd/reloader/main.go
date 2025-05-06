@@ -50,6 +50,7 @@ func (a *App) Start() error {
 		web.WithInClusterKubeClient(),
 		web.WithServiceEndpointHashBucket(appName),
 		web.WithKubernetesSecretInformer(),
+		web.WithIndefiniteAsyncTask("secrets-reload", a.watchSecrets),
 	); err != nil {
 		return err
 	}

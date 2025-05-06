@@ -62,7 +62,7 @@ func onSecretUpdate(
 			return
 		}
 
-		if err := killPods(ctx, kubeClient, pods); err != nil {
+		if err := killPods(ctx, kubeClient, pods); err != nil { // nolint:revive // Traditional error handling
 			l.Error("failed to kill pods", slog.String(logging.KeyError, err.Error()))
 			return
 		}

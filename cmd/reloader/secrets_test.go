@@ -81,7 +81,7 @@ func Test_OnSecretUpdate(t *testing.T) {
 		// Check that the pods were killed
 		for _, pod := range pods[:2] {
 			_, err = kubeClient.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-			require.EqualError(t, err, fmt.Sprintf("pods \"%s\" not found", pod.Name))
+			require.EqualError(t, err, fmt.Sprintf("pods %q not found", pod.Name))
 		}
 
 		// Check that the pod that was not in the bucket was not killed
