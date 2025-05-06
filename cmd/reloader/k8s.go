@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// killPods deletes the given pods from the cluster. It returns an error if any of the
 func killPods(
 	ctx context.Context,
 	kubeClient kubernetes.Interface,
