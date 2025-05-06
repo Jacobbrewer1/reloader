@@ -16,7 +16,10 @@ const (
 
 type (
 	// AppConfig is the configuration for the app.
-	AppConfig struct{}
+	AppConfig struct {
+		// KillOnDelete is the flag to kill the pods on dependent deletion.
+		KillOnDelete bool `env:"KILL_ON_DELETE" envDefault:"false"`
+	}
 
 	// App is the main application struct.
 	App struct {
@@ -28,6 +31,7 @@ type (
 	}
 )
 
+// NewApp creates a new application instance.
 func NewApp(l *slog.Logger) (*App, error) {
 	base, err := web.NewApp(l)
 	if err != nil {
@@ -45,6 +49,7 @@ func NewApp(l *slog.Logger) (*App, error) {
 	}, nil
 }
 
+// Start starts the application.
 func (a *App) Start() error {
 	if err := a.base.Start(
 		web.WithInClusterKubeClient(),
@@ -59,10 +64,12 @@ func (a *App) Start() error {
 	return nil
 }
 
+// WaitForEnd waits for the application to end.
 func (a *App) WaitForEnd() {
 	a.base.WaitForEnd(a.Shutdown)
 }
 
+// Shutdown shuts down the application.
 func (a *App) Shutdown() {
 	a.base.Shutdown()
 }

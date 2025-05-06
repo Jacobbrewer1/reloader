@@ -14,10 +14,11 @@ import (
 	"github.com/jacobbrewer1/web/logging"
 )
 
+// watchConfigMaps starts watching for configMap updates and deletes.
 func (a *App) watchConfigMaps(ctx context.Context) {
 	informer := a.base.ConfigMapInformer()
 
-	_, err := informer.AddEventHandler(kubecache.ResourceEventHandlerFuncs{
+	handler := kubecache.ResourceEventHandlerFuncs{
 		UpdateFunc: onConfigMapUpdate(
 			ctx,
 			logging.LoggerWithComponent(a.base.Logger(), "configmaps"),
@@ -25,7 +26,9 @@ func (a *App) watchConfigMaps(ctx context.Context) {
 			a.base.KubeClient(),
 			a.base.PodLister(),
 		),
-	})
+	}
+
+	_, err := informer.AddEventHandler(handler)
 	if err != nil {
 		a.base.Logger().Error("failed to add event handler", slog.String(logging.KeyError, err.Error()))
 		return
@@ -35,6 +38,7 @@ func (a *App) watchConfigMaps(ctx context.Context) {
 	<-ctx.Done()
 }
 
+// onConfigMapUpdate is called when a configMap is updated. It checks if the configMap is in the
 func onConfigMapUpdate(
 	ctx context.Context,
 	l *slog.Logger,
@@ -44,6 +48,41 @@ func onConfigMapUpdate(
 ) func(any, any) {
 	return func(oldObj, newObj any) {
 		configMap, ok := newObj.(*corev1.ConfigMap)
+		if !ok {
+			return
+		}
+
+		if !bucket.InBucket(configMap.Name) {
+			return
+		}
+
+		// Get all pods that use this configMap. This is specified with the label
+		// "reloader/configmap": "<configmap-name>".
+		pods, err := podLister.Pods(configMap.Namespace).List(labels.SelectorFromSet(map[string]string{
+			"reloader/configmap": configMap.Name,
+		}))
+		if err != nil {
+			l.Error("failed to list pods", slog.String(logging.KeyError, err.Error()))
+			return
+		}
+
+		if err := killPods(ctx, kubeClient, pods); err != nil { // nolint:revive // Traditional error handling
+			l.Error("failed to kill pods", slog.String(logging.KeyError, err.Error()))
+			return
+		}
+	}
+}
+
+// onConfigMapDelete is called when a configMap is deleted. It checks if the configMap is in the
+func onConfigMapDelete(
+	ctx context.Context,
+	l *slog.Logger,
+	bucket cache.HashBucket,
+	kubeClient kubernetes.Interface,
+	podLister listersv1.PodLister,
+) func(any) {
+	return func(obj any) {
+		configMap, ok := obj.(*corev1.ConfigMap)
 		if !ok {
 			return
 		}
