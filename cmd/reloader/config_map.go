@@ -82,6 +82,15 @@ func onConfigMapUpdate(
 			return
 		}
 
+		if len(pods) == 0 {
+			l.Debug("no pods found for configmap", slog.String("name", configMap.Name), slog.String("namespace", configMap.Namespace))
+			return
+		}
+
+		for _, pod := range pods {
+			l.Debug("pod", slog.String("name", pod.Name), slog.String("namespace", pod.Namespace))
+		}
+
 		if err := killPods(ctx, kubeClient, pods); err != nil { // nolint:revive // Traditional error handling
 			l.Error("failed to kill pods", slog.String(logging.KeyError, err.Error()))
 			return
