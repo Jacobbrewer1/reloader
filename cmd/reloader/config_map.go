@@ -29,6 +29,8 @@ func (a *App) watchConfigMaps(ctx context.Context) {
 	}
 
 	if a.config.KillOnDelete {
+		a.base.Logger().Debug("watching configmaps for delete events")
+
 		handler.DeleteFunc = onConfigMapDelete(
 			ctx,
 			logging.LoggerWithComponent(a.base.Logger(), "configmaps"),
@@ -45,7 +47,7 @@ func (a *App) watchConfigMaps(ctx context.Context) {
 	}
 
 	a.base.Logger().Info("watching configmaps")
-	<-ctx.Done()
+	informer.Run(ctx.Done())
 }
 
 // onConfigMapUpdate is called when a configMap is updated. It checks if the configMap is in the

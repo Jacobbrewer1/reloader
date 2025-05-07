@@ -29,6 +29,8 @@ func (a *App) watchSecrets(ctx context.Context) {
 	}
 
 	if a.config.KillOnDelete {
+		a.base.Logger().Debug("watching secrets for delete events")
+
 		handler.DeleteFunc = onSecretDelete(
 			ctx,
 			logging.LoggerWithComponent(a.base.Logger(), "secrets"),
@@ -45,7 +47,7 @@ func (a *App) watchSecrets(ctx context.Context) {
 	}
 
 	a.base.Logger().Info("watching secrets")
-	<-ctx.Done()
+	informer.Run(ctx.Done())
 }
 
 // onSecretUpdate is called when a secret is updated. It checks if the secret is in the
