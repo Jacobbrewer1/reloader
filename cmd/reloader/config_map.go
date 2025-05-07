@@ -28,6 +28,16 @@ func (a *App) watchConfigMaps(ctx context.Context) {
 		),
 	}
 
+	if a.config.KillOnDelete {
+		handler.DeleteFunc = onConfigMapDelete(
+			ctx,
+			logging.LoggerWithComponent(a.base.Logger(), "configmaps"),
+			a.base.ServiceEndpointHashBucket(),
+			a.base.KubeClient(),
+			a.base.PodLister(),
+		)
+	}
+
 	_, err := informer.AddEventHandler(handler)
 	if err != nil {
 		a.base.Logger().Error("failed to add event handler", slog.String(logging.KeyError, err.Error()))
