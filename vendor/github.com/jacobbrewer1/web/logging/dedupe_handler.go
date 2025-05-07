@@ -6,11 +6,7 @@ import (
 )
 
 // Ensure dedupeHandler implements the slog.Handler interface.
-//
-// This declaration ensures that the dedupeHandler type satisfies the slog.Handler
-// interface at compile time. If dedupeHandler does not implement all the methods
-// required by the slog.Handler interface, a compile-time error will occur.
-var _ slog.Handler = new(dedupeHandler)
+var _ slog.Handler = (*dedupeHandler)(nil)
 
 // dedupeHandler is a custom slog.Handler that deduplicates attributes.
 type dedupeHandler struct {

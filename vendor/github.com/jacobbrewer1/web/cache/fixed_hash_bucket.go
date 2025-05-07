@@ -10,7 +10,7 @@ import (
 //
 // This line is a compile-time check to guarantee that FixedHashBucket
 // satisfies all the methods defined in the HashBucket interface.
-var _ HashBucket = new(FixedHashBucket)
+var _ HashBucket = (*FixedHashBucket)(nil)
 
 // FixedHashBucket represents a mechanism for determining whether supplied keys belong to the current bucket index.
 // It uses a consistent hashing ring to distribute keys across buckets based on their hash values.
