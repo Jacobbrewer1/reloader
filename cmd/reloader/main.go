@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/caarlos0/env/v10"
 
@@ -18,7 +19,9 @@ type (
 	// AppConfig is the configuration for the app.
 	AppConfig struct {
 		// KillOnDelete is the flag to kill the pods on dependent deletion.
-		KillOnDelete bool `env:"KILL_ON_DELETE" envDefault:"false"`
+		KillOnDeleteStr string `env:"KILL_ON_DELETE" envDefault:"false"`
+		// KillOnDelete is the flag to kill
+		KillOnDelete bool
 	}
 
 	// App is the main application struct.
@@ -42,6 +45,7 @@ func NewApp(l *slog.Logger) (*App, error) {
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse env vars: %w", err)
 	}
+	cfg.KillOnDelete, _ = strconv.ParseBool(cfg.KillOnDeleteStr)
 
 	return &App{
 		base:   base,
@@ -51,6 +55,8 @@ func NewApp(l *slog.Logger) (*App, error) {
 
 // Start starts the application.
 func (a *App) Start() error {
+	a.base.Logger().Info("starting reloader", slog.String("KILL_ON_DELETE", fmt.Sprintf("%t", a.config.KillOnDelete)))
+
 	if err := a.base.Start(
 		web.WithInClusterKubeClient(),
 		web.WithServiceEndpointHashBucket(appName),
