@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,17 +20,22 @@ import (
 	"github.com/jacobbrewer1/web/slices"
 )
 
+const (
+	// k8sNameLabel is the label used to identify the Kubernetes resource name.
+	k8sNameLabel = "app.kubernetes.io/name"
+)
+
 // Ensures that ServiceEndpointHashBucket implements the HashBucket interface.
-//
-// This line is a compile-time check to verify that the ServiceEndpointHashBucket
-// struct satisfies all the methods defined in the HashBucket interface.
-var _ HashBucket = new(ServiceEndpointHashBucket)
+var _ HashBucket = (*ServiceEndpointHashBucket)(nil)
 
 // ServiceEndpointHashBucket represents a mechanism which determines whether the current application instance should process
 // a particular key. The bucket size is determined by the number of active endpoints in the supplied Kubernetes service.
 type ServiceEndpointHashBucket struct {
 	// mut is a read-write mutex used to ensure thread-safe access to the hash ring and other shared resources.
 	mut *sync.RWMutex
+
+	// startOnce is a sync.Once instance used to ensure that the Start method is only called once.
+	startOnce sync.Once
 
 	// hr represents the consistent hash ring used to distribute keys among application instances.
 	hr *hashring.HashRing
@@ -83,34 +89,54 @@ func (sb *ServiceEndpointHashBucket) Start(ctx context.Context) error {
 		return errors.New("context cannot be nil")
 	}
 
-	// Get the initial list of endpoint slices for the application
-	endpointSliceList, err := sb.kubeClient.DiscoveryV1().EndpointSlices(sb.appNamespace).Get(ctx, sb.appName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("error getting initial endpoints: %w", err)
-	}
+	var startErr error
+	sb.startOnce.Do(func() {
+		// Get the initial list of endpoint slices for the application
+		endpointSliceList, err := sb.kubeClient.DiscoveryV1().EndpointSlices(sb.appNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", k8sNameLabel, sb.appName),
+		})
+		if err != nil {
+			startErr = fmt.Errorf("error listing endpoint slices: %w", err)
+			return
+		} else if len(endpointSliceList.Items) == 0 {
+			startErr = fmt.Errorf("no endpoint slices found for application %s in namespace %s", sb.appName, sb.appNamespace)
+			return
+		}
 
-	// Convert the endpoint slice into a set of hostnames
-	currentHostSet := endpointSliceToSet(endpointSliceList)
-	sb.l.Info("initialising hash ring with hosts", slog.Any(logging.KeyHosts, currentHostSet.Items()))
+		// Combine all endpoints from all slices into a single set
+		currentHostSet := slices.NewSet[string]()
+		for i := range endpointSliceList.Items {
+			endpointSlice := &endpointSliceList.Items[i]
+			sliceHosts := endpointSliceToSet(endpointSlice)
+			sliceHosts.Each(func(host string) {
+				currentHostSet.Add(host)
+			})
+		}
 
-	// Lock the mutex to ensure thread-safe access to the hash ring
-	sb.mut.Lock()
-	defer sb.mut.Unlock()
+		sb.l.Info("initialising hash ring with hosts", slog.Any(logging.KeyHosts, currentHostSet.Items()))
 
-	// Initialize the hash ring with the current set of hosts
-	sb.hr = hashring.New(currentHostSet.Items())
+		// Lock the mutex to ensure thread-safe access to the hash ring
+		sb.mut.Lock()
+		defer sb.mut.Unlock()
 
-	// Start the shared informer factory to monitor changes in endpoint slices and wait for cache sync
-	sb.informerFactory.Start(ctx.Done())
-	sb.informerFactory.WaitForCacheSync(ctx.Done())
+		// Initialize the hash ring with the current set of hosts
+		sb.hr = hashring.New(currentHostSet.Items())
 
-	// Add an event handler to the endpoints informer to handle updates to endpoint slices
-	if _, err := sb.endpointsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: sb.onEndpointUpdate,
-	}); err != nil {
-		return fmt.Errorf("error adding event handler to endpoints informer: %w", err)
-	}
-	return nil
+		// Start the shared informer factory to monitor changes in endpoint slices and wait for cache sync
+		sb.informerFactory.Start(ctx.Done())
+		sb.informerFactory.WaitForCacheSync(ctx.Done())
+
+		// Add an event handler to the endpoints informer to handle updates to endpoint slices
+		if _, err := sb.endpointsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			UpdateFunc: sb.onEndpointUpdate,
+		}); err != nil {
+			startErr = fmt.Errorf("error adding event handler to endpoints informer: %w", err)
+			return
+		}
+
+		startErr = nil
+	})
+	return startErr
 }
 
 // InBucket checks if the given key is assigned to the current application instance
@@ -142,8 +168,14 @@ func (sb *ServiceEndpointHashBucket) onEndpointUpdate(oldEndpoints, newEndpoints
 		return
 	}
 
-	// Check if the updated endpoint slice matches the application name and namespace
-	if coreNewEndpoints.Name != sb.appName || coreNewEndpoints.Namespace != sb.appNamespace {
+	// Check if the updated endpoint slice matches the application
+	if coreNewEndpoints.GetNamespace() != sb.appNamespace {
+		return
+	}
+
+	// Check if this EndpointSlice belongs to our application
+	generateName := coreNewEndpoints.GetGenerateName()
+	if coreNewEndpoints.Labels[k8sNameLabel] != sb.appName && (generateName == "" || !strings.HasPrefix(generateName, sb.appName)) {
 		return
 	}
 
