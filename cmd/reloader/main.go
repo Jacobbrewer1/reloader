@@ -54,6 +54,7 @@ func (a *App) Start() error {
 	if err := a.base.Start(
 		web.WithInClusterKubeClient(),
 		web.WithServiceEndpointHashBucket(appName),
+		web.WithKubernetesPodInformer(),
 		web.WithKubernetesConfigMapInformer(),
 		web.WithKubernetesSecretInformer(),
 		web.WithIndefiniteAsyncTask("configmaps-reload", a.watchConfigMaps),
