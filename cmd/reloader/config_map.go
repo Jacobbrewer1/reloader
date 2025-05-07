@@ -62,9 +62,13 @@ func onConfigMapUpdate(
 			return
 		}
 
+		l.Debug("configmap updated", slog.String("name", configMap.Name), slog.String("namespace", configMap.Namespace))
+
 		if !bucket.InBucket(configMap.Name) {
 			return
 		}
+
+		l.Debug("handling configmap update", slog.String("name", configMap.Name), slog.String("namespace", configMap.Namespace))
 
 		// Get all pods that use this configMap. This is specified with the label
 		// "reloader/configmap": "<configmap-name>".
@@ -97,9 +101,13 @@ func onConfigMapDelete(
 			return
 		}
 
+		l.Debug("configmap deleted", slog.String("name", configMap.Name), slog.String("namespace", configMap.Namespace))
+
 		if !bucket.InBucket(configMap.Name) {
 			return
 		}
+
+		l.Debug("handling configmap delete", slog.String("name", configMap.Name), slog.String("namespace", configMap.Namespace))
 
 		// Get all pods that use this configMap. This is specified with the label
 		// "reloader/configmap": "<configmap-name>".

@@ -62,9 +62,13 @@ func onSecretUpdate(
 			return
 		}
 
+		l.Debug("secret updated", slog.String("name", secret.Name), slog.String("namespace", secret.Namespace))
+
 		if !bucket.InBucket(secret.Name) {
 			return
 		}
+
+		l.Debug("handling secret update", slog.String("name", secret.Name), slog.String("namespace", secret.Namespace))
 
 		// Get all pods that use this secret. This is specified with the label
 		// "reloader/secret": "<secret-name>".
@@ -97,9 +101,13 @@ func onSecretDelete(
 			return
 		}
 
+		l.Debug("secret deleted", slog.String("name", secret.Name), slog.String("namespace", secret.Namespace))
+
 		if !bucket.InBucket(secret.Name) {
 			return
 		}
+
+		l.Debug("handling secret delete", slog.String("name", secret.Name), slog.String("namespace", secret.Namespace))
 
 		pods, err := podLister.Pods(secret.Namespace).List(labels.SelectorFromSet(map[string]string{
 			"reloader/secret": secret.Name,
