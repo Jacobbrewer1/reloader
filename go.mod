@@ -8,7 +8,7 @@ require (
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/jacobbrewer1/web v0.0.7-0.20250507101220-f0806c20f8d4
 	github.com/magefile/mage v1.15.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	go.uber.org/mock v0.5.2
 	go.uber.org/multierr v1.11.0
 	k8s.io/api v0.33.0
